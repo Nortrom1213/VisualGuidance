@@ -27,8 +27,11 @@ import torchvision
 import torchvision.transforms as T
 import torchvision.models as models
 
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import fasterrcnn_resnet50_fpn
+
 from .adapters import Adapter
-from ..config.config import Config
+from config.config import Config
 
 
 class MSTPSelectorDataset(torch.utils.data.Dataset):
@@ -49,8 +52,13 @@ class MSTPSelectorDataset(torch.utils.data.Dataset):
     def __init__(self, annotations_file: str, img_dir: str,
                  crop_transform: Optional[callable] = None,
                  global_transform: Optional[callable] = None):
-        with open(annotations_file, 'r', encoding='utf-8') as f:
-            self.records = json.load(f)
+        # Handle both file path and loaded data
+        if isinstance(annotations_file, str):
+            with open(annotations_file, 'r', encoding='utf-8') as f:
+                self.records = json.load(f)
+        else:
+            # Assume annotations_file is already loaded data
+            self.records = annotations_file
         self.img_dir = img_dir
         
         # Default transforms if none provided

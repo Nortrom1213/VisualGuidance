@@ -7,25 +7,22 @@ The pipeline processes images to identify the most important spatial
 transition point for navigation guidance.
 """
 
-import os
-import cv2
-import json
-import argparse
-import pickle
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from PIL import Image
-
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as T
-import torchvision.models as models
+import torch.nn.functional as F
+import numpy as np
+from PIL import Image
+import cv2
+import os
+import json
+from typing import Dict, List, Tuple, Optional, Union
+from pathlib import Path
 
-from ..models.stp_detector import STPDetector, get_stp_detector, get_detector_transform
-from ..models.mstp_selector import MSTPSelectorNet, get_selector_transforms
-from ..utils.feature_bank import FeatureBank
-from ..config.config import Config
+# STP Detection imports
+from models.stp_detector import STPDetector, get_stp_detector, get_detector_transform
+from models.mstp_selector import MSTPSelectorNet, get_selector_transforms
+from utils.feature_bank import FeatureBank
+from config.config import Config
 
 
 class VisualGuidancePipeline:

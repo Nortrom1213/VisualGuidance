@@ -8,10 +8,16 @@ fine-tuning.
 """
 
 import os
+import sys
 import argparse
 import json
 import logging
 from typing import Dict, List, Tuple
+
+# Fix import path for direct script execution
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
 import torch
 import torch.nn as nn
@@ -19,8 +25,9 @@ import torch.optim as optim
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
-from ..models.stp_detector import STPDetector, STPDataset, collate_fn, get_stp_detector
-from ..config.config import Config
+# Use absolute imports instead of relative imports
+from models.stp_detector import STPDetector, STPDataset, collate_fn, get_stp_detector
+from config.config import Config
 
 
 def setup_logging(log_dir: str) -> logging.Logger:
@@ -74,24 +81,40 @@ def train_one_epoch(model: STPDetector, data_loader: torch.utils.data.DataLoader
     num_batches = 0
     
     for batch_idx, (images, targets) in enumerate(data_loader):
-        # Move data to device
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        
-        # Forward pass
-        loss_dict = model(images, targets)
-        losses = sum(loss for loss in loss_dict.values())
-        
-        # Backward pass
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-        
-        total_loss += losses.item()
-        num_batches += 1
-        
-        if batch_idx % 10 == 0:
-            logger.info(f"Epoch {epoch}, Batch {batch_idx}/{len(data_loader)}, Loss: {losses.item():.4f}")
+        try:
+            # Move data to device
+            images = [img.to(device) for img in images]
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            
+            # Forward pass - ensure model is in train mode
+            model.train()
+            loss_dict = model(images, targets)
+            
+            # Check if loss_dict is valid
+            if not isinstance(loss_dict, dict):
+                logger.warning(f"Unexpected model output type in training: {type(loss_dict)}")
+                continue
+                
+            losses = sum(loss for loss in loss_dict.values())
+            
+            # Backward pass
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
+            
+            total_loss += losses.item()
+            num_batches += 1
+            
+            if batch_idx % 10 == 0:
+                logger.info(f"Epoch {epoch}, Batch {batch_idx}/{len(data_loader)}, Loss: {losses.item():.4f}")
+                
+        except Exception as e:
+            logger.warning(f"Error during training batch {batch_idx}: {e}")
+            continue
+    
+    if num_batches == 0:
+        logger.warning("No valid training batches processed")
+        return float('inf')
     
     avg_loss = total_loss / num_batches
     return avg_loss
@@ -111,12 +134,27 @@ def validate_model(model: STPDetector, data_loader: torch.utils.data.DataLoader,
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             
-            # Forward pass
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            
-            total_loss += losses.item()
-            num_batches += 1
+            # Forward pass - during validation, we need to temporarily set model to train mode
+            # to get loss computation, then switch back to eval mode
+            model.train()
+            try:
+                loss_dict = model(images, targets)
+                if isinstance(loss_dict, dict):
+                    losses = sum(loss for loss in loss_dict.values())
+                    total_loss += losses.item()
+                    num_batches += 1
+                else:
+                    logger.warning(f"Unexpected model output type: {type(loss_dict)}")
+                    continue
+            except Exception as e:
+                logger.warning(f"Error during validation batch: {e}")
+                continue
+            finally:
+                model.eval()  # Always restore eval mode
+    
+    if num_batches == 0:
+        logger.warning("No valid validation batches processed")
+        return {"val_loss": float('inf')}
     
     avg_loss = total_loss / num_batches
     

@@ -8,10 +8,16 @@ with global context information.
 """
 
 import os
+import sys
 import argparse
 import json
 import logging
 from typing import Dict, List, Tuple
+
+# Fix import path for direct script execution
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
 import torch
 import torch.nn as nn
@@ -19,11 +25,12 @@ import torch.optim as optim
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
-from ..models.mstp_selector import (
+# Use absolute imports instead of relative imports
+from models.mstp_selector import (
     MSTPSelectorNet, MSTPSelectorDataset, selector_collate_fn,
     train_one_epoch, evaluate_selector, create_mstp_selector
 )
-from ..config.config import Config
+from config.config import Config
 
 
 def setup_logging(log_dir: str) -> logging.Logger:

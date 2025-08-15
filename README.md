@@ -42,7 +42,8 @@ VisualGuidance/
 │   └── mstp_selector.py     # MSTP selection model
 ├── pipeline/
 │   ├── __init__.py          # Package initialization
-│   └── inference.py         # Complete inference pipeline
+│   ├── inference.py         # Complete inference pipeline
+│   └── realtime.py          # Real-time inference with screen capture
 ├── utils/
 │   ├── __init__.py          # Package initialization
 │   └── feature_bank.py      # Feature bank for retrieval
@@ -60,7 +61,7 @@ VisualGuidance/
 
 1. **Clone the repository**:
    ```bash
-   git clone [your-repo-url]
+   git clone https://github.com/Nortrom1213/VisualGuidance.git
    cd VisualGuidance
    ```
 
@@ -141,8 +142,8 @@ python scripts/train_mstp_selector.py \
 
 ```bash
 python utils/feature_bank.py \
-    --annotations data/annotations/stp_labels.json \
-    --images_dir data/datasets/images/ \
+    --annotations data/processed/train_dataset.json \
+    --images_dir data/datasets/main/all/ \
     --output feature_bank.pkl \
     --top_k 1000
 ```
@@ -204,6 +205,11 @@ print(f"Crop size: {selector_config['crop_size']}")
 - Provide visual guidance for optimal routing
 - Support real-time navigation assistance
 
+### Real-time Inference
+- Screen capture and real-time STP detection
+- Live overlay visualization for gaming
+- Configurable frame rate and detection thresholds
+
 ### Research Applications
 - Computer vision research in gaming contexts
 - Domain adaptation studies
@@ -222,28 +228,25 @@ python scripts/demo.py \
     --feature_bank feature_bank.pkl
 ```
 
+### Real-time Inference
+
+```bash
+python pipeline/realtime.py \
+    --detector_model_path path/to/stp_detector.pth \
+    --selector_model_path path/to/mstp_selector.pth \
+    --use_retrieval \
+    --retrieval_bank_file feature_bank.pkl \
+    --alpha 0.6 \
+    --score_threshold 0.5 \
+    --frame_interval 0.2
+```
+
 ### Evaluation
 
 The system provides comprehensive evaluation metrics:
 - **STP Detector**: mAP, IoU, Precision, Recall
 - **MSTP Selector**: Accuracy, Top-k accuracy
 - **Pipeline**: End-to-end performance metrics
-
-## Technical Details
-
-### Adapter Fine-tuning
-
-The system implements efficient fine-tuning through adapter modules:
-- **Bottleneck Architecture**: Low-rank adaptation for parameter efficiency
-- **Residual Connections**: Preserve pre-trained knowledge
-- **Domain Adaptation**: Quick adaptation to new game environments
-
-### Retrieval Augmentation
-
-Feature-based retrieval enhances MSTP selection:
-- **Cosine Similarity**: Measure feature similarity
-- **Quality Scoring**: Rank features by informativeness
-- **Fusion Strategy**: Combine retrieval and model scores
 
 
 ## Contributing

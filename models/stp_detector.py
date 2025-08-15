@@ -27,7 +27,7 @@ from torchvision.models.detection.faster_rcnn import fasterrcnn_resnet50_fpn
 import torchvision.transforms as T
 
 from .adapters import CombinedPredictor, AdapterPredictor
-from ..config.config import Config
+from config.config import Config
 
 
 class STPDataset(torch.utils.data.Dataset):
@@ -45,10 +45,20 @@ class STPDataset(torch.utils.data.Dataset):
     
     def __init__(self, annotations_file: str, img_dir: str, 
                  transform: Optional[callable] = None):
-        with open(annotations_file, 'r', encoding='utf-8') as f:
-            self.records = json.load(f)
+        # Handle both file path and loaded data
+        if isinstance(annotations_file, str):
+            with open(annotations_file, 'r', encoding='utf-8') as f:
+                self.records = json.load(f)
+        else:
+            # Assume annotations_file is already loaded data
+            self.records = annotations_file
         self.img_dir = img_dir
-        self.transform = transform
+        
+        # Set default transform if none provided
+        if transform is None:
+            self.transform = T.Compose([T.ToTensor()])
+        else:
+            self.transform = transform
         
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
@@ -68,17 +78,30 @@ class STPDataset(torch.utils.data.Dataset):
         image_path = os.path.join(self.img_dir, record["image_id"])
         image = Image.open(image_path).convert("RGB")
         
-        # Convert PIL image to tensor
-        if self.transform:
-            image = self.transform(image)
+        # Convert PIL image to tensor (always apply transform)
+        image = self.transform(image)
+        
+        # Combine MSTP and STP into boxes
+        boxes = []
+        if "MSTP" in record and record["MSTP"]:
+            boxes.append(record["MSTP"])
+        if "STP" in record and record["STP"]:
+            boxes.extend(record["STP"])
+        
+        # Calculate areas for bounding boxes
+        areas = []
+        for box in boxes:
+            x1, y1, x2, y2 = box
+            area = (x2 - x1) * (y2 - y1)
+            areas.append(area)
         
         # Prepare target dictionary
         target = {
-            "boxes": torch.tensor(record["boxes"], dtype=torch.float32),
-            "labels": torch.ones(len(record["boxes"]), dtype=torch.long),
+            "boxes": torch.tensor(boxes, dtype=torch.float32) if boxes else torch.empty((0, 4), dtype=torch.float32),
+            "labels": torch.ones(len(boxes), dtype=torch.long) if boxes else torch.empty((0,), dtype=torch.long),
             "image_id": torch.tensor([idx]),
-            "area": torch.tensor(record["areas"], dtype=torch.float32),
-            "iscrowd": torch.zeros(len(record["boxes"]), dtype=torch.long)
+            "area": torch.tensor(areas, dtype=torch.float32) if areas else torch.empty((0,), dtype=torch.float32),
+            "iscrowd": torch.zeros(len(boxes), dtype=torch.long) if boxes else torch.empty((0,), dtype=torch.long)
         }
         
         return image, target

@@ -7,13 +7,20 @@ for STP detection and MSTP selection on sample images.
 """
 
 import os
+import sys
 import argparse
 import cv2
 import numpy as np
 from PIL import Image
 
-from ..pipeline.inference import VisualGuidancePipeline
-from ..config.config import Config
+# Fix import path for direct script execution
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+# Use absolute imports instead of relative imports
+from pipeline.inference import VisualGuidancePipeline
+from config.config import Config
 
 
 def demo_single_image(pipeline: VisualGuidancePipeline, image_path: str, 
